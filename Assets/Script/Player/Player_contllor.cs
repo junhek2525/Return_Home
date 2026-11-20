@@ -3,28 +3,40 @@ using UnityEngine;
 
 public class Player_contllor : MonoBehaviour
 {
-    public float moveSpeed = 5f;
-    public float jumpPower = 10f;
+
+
+    [Header("Player Stats")]
+    [SerializeField] public float Speed = 5f;
+    [SerializeField] public float jumpPower = 10f;
+    [SerializeField] public float Health = 100f;
+    [SerializeField] public float Attack = 10;
+    [SerializeField] public float Defense = 10;
+
+
+
+
+
     public Vector2 attacksize = new Vector2(0.9f, 0.9f);
     public float attackDistance = 0.8f;
 
-    private bool Jumping = false;
+    public LayerMask enemyLayer;
+    public LayerMask layerMask;
+
+    public Transform groundpos;
+    public Transform attackpos;
+    public float groundCheckRadius = 0.2f;
 
     private Rigidbody2D rb;
     private float moveInput;
+    private bool Jumping;
 
-    public enum direction { L, R, U, D };
-    public direction Current_direction;
-
-    public Transform attackpos;
-    public Transform groundpos;
-    public LayerMask layerMask;
-
-    public float groundCheckRadius = 0.2f;
+    public enum direction { L, R, U, D }
+    public direction Current_direction = direction.R;
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
+        SetAttackPosition();
     }
 
     void Update()
@@ -33,83 +45,83 @@ public class Player_contllor : MonoBehaviour
 
         directions();
 
-        // 바닥에 닿았는지 검사
-        Jumping = !Physics2D.OverlapCircle(groundpos.position,groundCheckRadius,layerMask);
-    }
-
-    private void OnCollisionEnter2D(Collision2D collision)
-    {
-        if (collision.gameObject.CompareTag("Enemy"))
-        {
-            Debug.Log("발견!");
-        }
+        // 바닥 체크
+        Jumping = !Physics2D.OverlapCircle(
+            groundpos.position,
+            groundCheckRadius,
+            layerMask
+        );
     }
 
     void FixedUpdate()
     {
         rb.linearVelocity = new Vector2(
-            moveInput * moveSpeed,
+            moveInput * Speed,
             rb.linearVelocity.y
         );
     }
 
-    public void directions()
+    void directions()
     {
         if (Input.GetKey(KeyCode.A))
         {
-            Current_direction = direction.L;
+            if (Current_direction != direction.L)
+            {
+                Current_direction = direction.L;
+                SetAttackPosition();
+            }
         }
 
         if (Input.GetKey(KeyCode.D))
         {
-            Current_direction = direction.R;
+            if (Current_direction != direction.R)
+            {
+                Current_direction = direction.R;
+                SetAttackPosition();
+            }
         }
 
-        if (Input.GetKeyDown(KeyCode.W) && !Jumping)
-        {
+        if (Input.GetKeyDown(KeyCode.Space) && !Jumping)
             Jump();
-        }
+
         if (Input.GetKeyDown(KeyCode.E))
-        {
-            Attack();
-        }
+            Attacking();
     }
+
+    // 공격 위치 계산
     void SetAttackPosition()
     {
-        switch (Current_direction)
+        float dir = Current_direction == direction.L ? -1f : 1f;
+
+        attackpos.localPosition = new Vector3(
+            dir * attackDistance,
+            0f,
+            0f
+        );
+    }
+
+    void Attacking()
+    {
+        Collider2D[] hitEnemies = Physics2D.OverlapBoxAll(
+            attackpos.position,
+            attacksize,
+            0f,
+            enemyLayer
+        );
+
+        foreach (Collider2D enemy in hitEnemies)
         {
-            case direction.L:
-                attackpos.localPosition = new Vector2(-attackDistance, 0);
-                break;
-
-            case direction.R:
-                attackpos.localPosition = new Vector2(attackDistance, 0);
-                break;
-
-            case direction.U:
-                attackpos.localPosition = new Vector2(0, attackDistance);
-                break;
-
-            case direction.D:
-                attackpos.localPosition = new Vector2(0, -attackDistance);
-                break;
+            Debug.Log("적 공격 성공!");
         }
     }
-    void Attack()
+    public void Damageing(float damage)
     {
-        //Collider2D[] hitEnemies = Physics2D.OverlapBoxAll(
-        //    attackpos.position,
-        //    attackSize,
-        //    0f,
-        //    enemyLayer
-        //);
+        Health -= damage;
 
-        //foreach (Collider2D enemy in hitEnemies)
-        //{
-        //    Debug.Log("적 공격 성공!");
+        if(Health <= 0f)
+        {
 
-        //    // 나중에 적 체력 감소 코드 추가
-        //}
+        }
     }
     public void Jump()
     {
@@ -121,9 +133,9 @@ public class Player_contllor : MonoBehaviour
         );
     }
 
-    // Scene에서 바닥 체크 범위 확인
     private void OnDrawGizmos()
     {
+        // 바닥 체크 범위
         if (groundpos != null)
         {
             Gizmos.color = Color.green;
@@ -132,12 +144,13 @@ public class Player_contllor : MonoBehaviour
                 groundCheckRadius
             );
         }
+
+        // 공격 범위
         if (attackpos != null)
         {
             Gizmos.color = Color.red;
-            Gizmos.DrawWireCube(transform.position, attacksize);
+            Gizmos.DrawWireCube(attackpos.position, attacksize);
         }
 
     }
-    
 }
